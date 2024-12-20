@@ -1,0 +1,44 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '2.0.20'
+    id 'application'
+    id("com.github.johnrengelman.shadow") version "7.1.2"
+}
+
+group = 'com.krld'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation "org.jetbrains.kotlin:kotlin-test"
+
+    // okhttp
+    implementation "com.squareup.okhttp3:okhttp:4.10.0"
+
+    // gson
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
+
+application {
+    mainClassName = 'MainKt'
+}
+
+shadowJar {
+    destinationDirectory = file("./")
+    archiveFileName = 'datsNewWay.jar'
+}
+
+mainClassName = 'MainKt'
