@@ -7,7 +7,7 @@ import javax.swing.Timer
 
 var lastAction: ActionPlanned? = null
 
-class ActionPlanned(var commands: List<SnakeCommandDto> = emptyList()) {
+data class ActionPlanned(var commands: List<SnakeCommandDto> = emptyList()) {
 
 }
 
@@ -104,6 +104,8 @@ fun actualStrategy() {
     val myAction = doSimpleGuy()
     stats.logicTookMs = System.currentTimeMillis() - startLogic
 
+    log("actualStrategy logicTookMs=${stats.logicTookMs} myAction=$myAction")
+
     lastAction = myAction
 
     val startRequest = System.currentTimeMillis()
@@ -117,12 +119,17 @@ fun actualStrategy() {
     logicThread.schedule({ actualStrategy() }, waitNextTick, TimeUnit.MILLISECONDS)
 }
 
+var mapPoints = PlainArray3D(0, 0, 0, { Point3D(0, 0, 0) })
+var mapBooleans = PlainArray3DBoolean(0, 0, 0, { false })
+var mapInts = PlainArray3DInt(0, 0, 0, { 0 })
+
 private fun doSimpleGuy(): ActionPlanned {
     val w = currentWorldState
 
     if (w == null) {
-        return ActionPlanned(emptyList<SnakeCommandDto>())
+        return ActionPlanned(emptyList())
     }
+    initMapsIfNeeded(w)
 
     val actionPlanned = ActionPlanned()
 
@@ -172,6 +179,20 @@ private fun doSimpleGuy(): ActionPlanned {
     actionPlanned.commands = result
     return actionPlanned
 
+}
+
+private fun initMapsIfNeeded(w: WorldStateDto) {
+    if (mapPoints.cellsWidth != w.mapSizePoint.x) {
+        mapPoints = PlainArray3D(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { Point3D(0, 0, 0) })
+        mapPoints.fori { x, y, z, v ->
+            v.x = x
+            v.y = y
+            v.z = z
+        }
+
+        mapBooleans = PlainArray3DBoolean(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { false })
+        mapInts = PlainArray3DInt(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { Int.MAX_VALUE })
+    }
 }
 
 data class AccAndScore(val acc: Point3D, val score: Double = 0.0)

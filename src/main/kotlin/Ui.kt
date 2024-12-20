@@ -195,9 +195,10 @@ class Ui {
 
         val minFood = currentWorldState?.food?.minOf { if (it.points == 0) Int.MAX_VALUE else it.points }
 
-        infoLabel.text = "info\n" +
+        infoLabel.text = "info logicMs:${stats.logicTookMs}\n" +
                 "fences:${currentWorldState?.fences?.size}" +
                 "foodCount:${currentWorldState?.food?.size} max:${currentWorldState?.food?.maxOf { it.points }} min:${minFood}"
+
         /*
                 infoLabel.text = "info\n" +
                         "points: ${currentWorldState?.points}\n" +

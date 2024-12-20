@@ -245,4 +245,9 @@ data class SnakeCommandDto(
     val id: String,
     val direction: List<Int>,
 ) {
+    constructor(id: String, direction: Point3D) : this(id, direction.toList())
+
+    override fun toString(): String {
+        return "(id='${id.take(4)}', dir=$direction)"
+    }
 }
