@@ -43,6 +43,23 @@ class Ui {
                     g.fillRect((p.x * k).toInt(), (p.y * k).toInt(), size, size)
                 }
             }
+
+            val maxFood = w.food.maxOf { it.points }
+            val minFood = w.food.minOf { if (it.points == 0) Int.MAX_VALUE else it.points }
+            val foodDelta = maxFood - minFood
+            w.food.forEach { f ->
+                val isGolden = w.specialFood.goldenPointsSet.contains(f.cPoint)
+                val isSus = w.specialFood.goldenPointsSet.contains(f.cPoint)
+                val strength = ((f.points - minFood - 0.0) / foodDelta).coerceAtLeast(0.1)
+                g.color = when {
+                    isGolden -> Color.PINK.withAlpha(strength)
+                    isSus -> Color.CYAN
+                    else -> Color.ORANGE.withAlpha(strength)
+                }
+
+                g.fillRect((f.cPoint.x * k).toInt(), (f.cPoint.y * k).toInt(), size, size)
+            }
+
             w.snakes.forEach { myShip ->
                 myShip.geometryPoints.forEachIndexed { index, p ->
                     g.color = if (index == 0) Color.GREEN else Color.BLUE
@@ -176,8 +193,11 @@ class Ui {
         //  println("redraw called")
         canvasPanel.repaint()
 
+        val minFood = currentWorldState?.food?.minOf { if (it.points == 0) Int.MAX_VALUE else it.points }
+
         infoLabel.text = "info\n" +
-                "fences:${currentWorldState?.fences?.size}"
+                "fences:${currentWorldState?.fences?.size}" +
+                "foodCount:${currentWorldState?.food?.size} max:${currentWorldState?.food?.maxOf { it.points }} min:${minFood}"
         /*
                 infoLabel.text = "info\n" +
                         "points: ${currentWorldState?.points}\n" +

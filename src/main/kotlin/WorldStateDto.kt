@@ -112,15 +112,17 @@ data class WorldStateDto(
     private var _mapSizePoint: Point3D? = null
     val mapSizePoint: Point3D
         get() = _mapSizePoint ?: Point3D(mapSize[0], mapSize[1], mapSize[2]).also { _mapSizePoint = it }
-    private val _fencesPoints: MutableList<Point3D> = mutableListOf()
+    private var _fencesPoints: MutableList<Point3D>? = null
     val fencesPoints: List<Point3D>
         get() {
-            if (_fencesPoints.isEmpty()) {
+            if (_fencesPoints == null) {
+                val new = ArrayList<Point3D>()
                 fences.forEach { coords ->
-                    _fencesPoints.add(Point3D(coords[0], coords[1], coords[2]))
+                    new.add(Point3D(coords[0], coords[1], coords[2]))
                 }
+                _fencesPoints = new
             }
-            return _fencesPoints
+            return _fencesPoints!!
         }
 }
 
@@ -141,15 +143,16 @@ data class SnakeDto(
     val oldDirectionPoint: Point3D
         get() = _oldDirectionPoint ?: Point3D(oldDirection[0], oldDirection[1], oldDirection[2]).also { _oldDirectionPoint = it }
 
-    private val _geometryPoints: MutableList<Point3D> = mutableListOf()
+    private var _geometryPoints: MutableList<Point3D>? = null
     val geometryPoints: List<Point3D>
         get() {
-            if (_geometryPoints.isEmpty()) {
+            if (_geometryPoints == null) {
+                _geometryPoints = mutableListOf()
                 geometry.forEach { coords ->
-                    _geometryPoints.add(Point3D(coords[0], coords[1], coords[2]))
+                    _geometryPoints?.add(Point3D(coords[0], coords[1], coords[2]))
                 }
             }
-            return _geometryPoints
+            return _geometryPoints!!
         }
 }
 
@@ -158,15 +161,16 @@ data class EnemyDto(
     val status: String,
     val kills: Int
 ) {
-    private val _geometryPoints: MutableList<Point3D> = mutableListOf()
+    private var _geometryPoints: MutableList<Point3D>? = null
     val geometryPoints: List<Point3D>
         get() {
-            if (_geometryPoints.isEmpty()) {
+            if (_geometryPoints == null) {
+                _geometryPoints = mutableListOf()
                 geometry.forEach { coords ->
-                    _geometryPoints.add(Point3D(coords[0], coords[1], coords[2]))
+                    _geometryPoints?.add(Point3D(coords[0], coords[1], coords[2]))
                 }
             }
-            return _geometryPoints
+            return _geometryPoints!!
         }
 }
 
@@ -183,26 +187,53 @@ data class SpecialFoodDto(
     val golden: List<List<Int>>,
     val suspicious: List<List<Int>>
 ) {
-    private val _goldenPoints: MutableList<Point3D> = mutableListOf()
+
+    private var _goldenPoints: MutableList<Point3D>? = null
     val goldenPoints: List<Point3D>
         get() {
-            if (_goldenPoints.isEmpty()) {
+            if (_goldenPoints == null) {
+                _goldenPoints = mutableListOf()
                 golden.forEach { coords ->
-                    _goldenPoints.add(Point3D(coords[0], coords[1], coords[2]))
+                    _goldenPoints?.add(Point3D(coords[0], coords[1], coords[2]))
                 }
             }
-            return _goldenPoints
+            return _goldenPoints!!
         }
 
-    private val _suspiciousPoints: MutableList<Point3D> = mutableListOf()
-    val suspiciousPoints: List<Point3D>
+    private var _goldenPointsSet: MutableSet<Point3D>? = null
+    val goldenPointsSet: Set<Point3D>
         get() {
-            if (_suspiciousPoints.isEmpty()) {
-                suspicious.forEach { coords ->
-                    _suspiciousPoints.add(Point3D(coords[0], coords[1], coords[2]))
+            if (_goldenPointsSet == null) {
+                _goldenPointsSet = mutableSetOf()
+                golden.forEach { coords ->
+                    _goldenPointsSet?.add(Point3D(coords[0], coords[1], coords[2]))
                 }
             }
-            return _suspiciousPoints
+            return _goldenPointsSet!!
+        }
+
+    private var _suspiciousPointsSet: MutableSet<Point3D>? = null
+    val suspiciousPointsSet: Set<Point3D>
+        get() {
+            if (_suspiciousPointsSet == null) {
+                _suspiciousPointsSet = mutableSetOf()
+                suspicious.forEach { coords ->
+                    _suspiciousPointsSet?.add(Point3D(coords[0], coords[1], coords[2]))
+                }
+            }
+            return _suspiciousPointsSet!!
+        }
+
+    private var _suspiciousPoints: MutableList<Point3D>? = null
+    val suspiciousPoints: List<Point3D>
+        get() {
+            if (_suspiciousPoints == null) {
+                _suspiciousPoints = mutableListOf()
+                suspicious.forEach { coords ->
+                    _suspiciousPoints?.add(Point3D(coords[0], coords[1], coords[2]))
+                }
+            }
+            return _suspiciousPoints!!
         }
 }
 
