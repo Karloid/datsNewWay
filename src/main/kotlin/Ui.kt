@@ -6,7 +6,9 @@ import kotlin.math.roundToInt
 
 val CANVAS_SIZE = 1024
 
+
 class Ui {
+    private var activeZ: Int = 0
 
     val frame = JFrame("DatsNewWay")
     val infoLabel = JTextArea("Info")
@@ -33,7 +35,9 @@ class Ui {
             w.fencesPoints.forEach {
                 val baseColor = Color.BLACK
                 g.color = baseColor
-
+                if (it.z != activeZ && false) {
+                    return@forEach
+                }
                 g.fillRect((it.x * k).toInt(), (it.y * k).toInt(), size, size)
             }
 
@@ -193,13 +197,20 @@ class Ui {
 
         val button1 = JButton("Button 1")
         val button2 = JButton("Button 2")
+        val slider = JSlider(JSlider.HORIZONTAL, 0, 200, 0)
+        slider.addChangeListener {
+            activeZ = slider.value
+            redraw()
+        }
 
         button1.setBounds(CANVAS_SIZE, 20, 100, 30) // Align buttons to the right
         button2.setBounds(CANVAS_SIZE, 100, 100, 30)
+        slider.setBounds(CANVAS_SIZE, 55, 200, 30)
 
         frame.add(canvasPanel)
         frame.add(button1)
         frame.add(button2)
+        frame.add(slider)
 
         // add label under button 2 with with 200 and 200 height
 
@@ -224,10 +235,11 @@ class Ui {
 
         val minFood = currentWorldState?.food?.minOf { if (it.points == 0) Int.MAX_VALUE else it.points }
 
-        infoLabel.text = "info logicMs:${stats.logicTookMs}\n" +
+        infoLabel.text = "tick:${currentWorldState?.turn} points=${currentWorldState?.points} logicMs:${stats.logicTookMs} z:${activeZ} map:${currentWorldState?.mapSize}\n" +
+                "requestTook: state=${stats?.requestStateTook} move=${stats.requestTook} success/bad moves=${stats.successMoves}/${stats.badMoves}\n" +
                 "fences:${currentWorldState?.fences?.size}\n" +
                 "foodCount:${currentWorldState?.food?.size} max:${currentWorldState?.food?.maxOf { it.points }} min:${minFood}\n" +
-                "paths:${stats.logicToDraw?.paths?.minOf { it.size }}..${stats.logicToDraw?.paths?.maxOf { it.size }}\n}"
+                "paths:${stats.logicToDraw?.paths?.map { "l:" + it.size + " " + it.last().toList() }}\n"
 
         /*
                 infoLabel.text = "info\n" +

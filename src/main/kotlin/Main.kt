@@ -35,6 +35,9 @@ val stats = Stats()
 
 class Stats {
 
+
+    @Volatile
+    var requestStateTook: Long = 0
     val tmpSims: MutableList<SimsInfo> = mutableListOf()
 
     @Volatile
@@ -47,6 +50,8 @@ class Stats {
     @Volatile
     var logicTookMs: Long = 0
 
+    @Volatile
+    var badMoves: Long = 0
     @Volatile
     var successMoves = 0
 }
@@ -104,6 +109,10 @@ fun doLoop() {
 }
 
 fun actualStrategy() {
+    var startRequest = System.currentTimeMillis()
+    currentWorldState = Api.move(transports = emptyList())
+    stats.requestStateTook = System.currentTimeMillis() - startRequest
+    val stateTick = currentWorldState?.turn
     val startLogic = System.currentTimeMillis()
     val myAction = doSimpleGuy()
     stats.logicTookMs = System.currentTimeMillis() - startLogic
@@ -112,11 +121,16 @@ fun actualStrategy() {
 
     lastAction = myAction
 
-    val startRequest = System.currentTimeMillis()
-    currentWorldState = Api.move(myAction.commands)
+    startRequest = System.currentTimeMillis()
+    currentWorldState = Api.move(myAction.commands, throttleEnabled = false)
     stats.requestTook = System.currentTimeMillis() - startRequest
-
-    stats.successMoves++
+    val actualTick = currentWorldState?.turn
+    if (actualTick != stateTick) {
+        log("ERROR actualStrategy tick mismatch tick=$actualTick stateTick=$stateTick")
+        stats.badMoves++
+    } else {
+        stats.successMoves++
+    }
 
     val waitNextTick = currentWorldState?.tickRemainMs?.plus(20L) ?: 200L
     log("actualStrategy waitNextTick=${waitNextTick}")
@@ -145,6 +159,9 @@ private fun doSimpleGuy(): ActionPlanned {
         stats.tmpLogicToDraw = LogicToDraw()
     }
     w.snakes.forEach { mySnake ->
+        if (mySnake.status == "dead") {
+            return@forEach
+        }
         val accessMap = calcAccessMap(mapInts1, mySnake)
 
         val closestFood = findClosestFood(accessMap, mySnake)

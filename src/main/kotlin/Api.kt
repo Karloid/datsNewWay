@@ -79,7 +79,7 @@ object Api {
 
         val result = gson.fromJson(body, RoundsDto::class.java) ?: throw Exception("Failed to parse response response=$response body=$body")
 
-      //  saveResponse(path, body)
+        //  saveResponse(path, body)
         return result
     }
 
@@ -93,7 +93,7 @@ object Api {
         val fileName = System.currentTimeMillis().toString() + "-" + path.replace("/", "_") + ".txt"
         val file = File("responses/$fileName")
         file.writeText(body)
-        
+
 
     }
 
@@ -125,9 +125,10 @@ object Api {
     }
 
 
-    fun move(transports: List<SnakeCommandDto>): WorldStateDto {
-
-        throttle()
+    fun move(transports: List<SnakeCommandDto>, throttleEnabled: Boolean = true): WorldStateDto {
+        if (throttleEnabled) {
+            throttle()
+        }
         val path = "/play/snake3d/player/move"
 
         if (REPEAT_MODE) {
@@ -151,7 +152,7 @@ object Api {
 
         val json = gson.toJson(CommandsDto(transports))
 
-        saveResponse(path+"_req", json)
+        saveResponse(path + "_req", json)
 
         //  log(json)
 
@@ -178,7 +179,7 @@ object Api {
 
         //  log(bodyResponse)
         saveResponse(path, bodyResponse)
-        
+
         val result = gson.fromJson(bodyResponse, WorldStateDto::class.java) ?: throw Exception("Failed to parse response response=$response body=$bodyResponse")
 
         result.initialise()
