@@ -106,81 +106,6 @@ class Ui {
                 sims.allVariants.forEach { variant ->
                     // draw acc
                     g.color = Color.MAGENTA
-                    /*              variant.acc.copy().mul(40.0).let { acc ->
-                                                          g.drawLine(
-                                                              (variant.variantPoses.first().x * k).toInt(),
-                                                              (variant.variantPoses.first().y * k).toInt(),
-                                                              ((variant.variantPoses.first().x + acc.x ) * k).toInt(),
-                                                              ((variant.variantPoses.first().y + acc.y ) * k).toInt()
-                                                          )
-                                                      }*//*
-
-
-                    g.color = if (variant == sims.best) Color.PINK else Color.BLUE
-                    // draw line all poses
-
-                    variant.variantPoses.forEachIndexed { index, pos ->
-                        if (index < variant.variantPoses.size - 1) {
-                            val nextPos = variant.variantPoses[index + 1]
-                            g.drawLine(
-                                (pos.x * k).toInt(),
-                                (pos.y * k).toInt(),
-                                (nextPos.x * k).toInt(),
-                                (nextPos.y * k).toInt()
-                            )
-                        }
-                    }
-
-                    if (variant == sims.best) {
-                        g.color = Color.cyan
-                        // draw all bounties
-                        variant.bountiesPicked.forEach { (pos, bounty) ->
-                            g.fillOval((pos.x * k).toInt() - 3, (pos.y * k).toInt() - 3, 6, 6)
-                        }
-                    }
-                }
-                g.color = Color.RED
-                sims.best.variantPoses.forEach { pos ->
-                    g.fillOval((pos.x * k).toInt() - 2, (pos.y * k).toInt() - 2, 4, 4)
-                }
-            }
-
-            w.transports.forEach { myTr ->
-                g.color = Color.BLUE
-                g.fillOval((myTr.pos.x * k).toInt() - 5, (myTr.pos.y * k).toInt() - 5, 10, 10)
-
-
-*/
-                    /*
-                                    a?.transports?.firstOrNull { action ->
-                                        action.id == myTr.id
-                                    }?.let { action ->
-                                        g.color = Color.BLACK
-                                        val acceleration = action.acceleration.copy().mul(20.0)
-                                        g.drawLine(
-                                            (myTr.pos.x * k).toInt(),
-                                            (myTr.pos.y * k).toInt(),
-                                            ((myTr.pos.x + acceleration.x) * k).toInt(),
-                                            ((myTr.pos.y + acceleration.y) * k).toInt()
-                                        )
-
-                                        action.attack?.let { attack ->
-                                            g.color = Color.RED
-                                            g.drawLine(
-                                                (myTr.pos.x * k).toInt(),
-                                                (myTr.pos.y * k).toInt(),
-                                                (attack.x * k).toInt(),
-                                                (attack.y * k).toInt()
-                                            )
-                                        }
-                                    }
-                    *//*
-
-            }
-
-
-            //   println("Repaint canvas")
-*/
                 }
             }
         }
@@ -228,7 +153,6 @@ class Ui {
     }
 
     fun redraw() {
-        //  println("redraw called")
         canvasPanel.repaint()
 
         val minFood = currentWorldState?.food?.minOf { if (it.points == 0) Int.MAX_VALUE else it.points }
@@ -245,50 +169,7 @@ class Ui {
                         "\nl:" + pathSize + " " + it.last().toList() + " p:" + points + " perDist:${pPerDist}"
                     }
                 }\n"
-
-        /*
-                infoLabel.text = "info\n" +
-                        "points: ${currentWorldState?.points}\n" +
-                        "name: ${currentWorldState?.name}\n" +
-                        "successCount: ${stats.successMoves}\n" +
-                        "maxSpeed: ${currentWorldState?.maxSpeed} " +
-                        "maxAccel: ${currentWorldState?.maxAccel} " +
-                        "shieldTimeMs: ${currentWorldState?.shieldTimeMs} " +
-                        "shieldCooldownMs: ${currentWorldState?.shieldCooldownMs} " +
-                        "reviveTimeoutSec: ${currentWorldState?.reviveTimeoutSec} " +
-                        "enemies: ${currentWorldState?.enemies?.size} " +
-                        "bounties: ${currentWorldState?.bounties?.size} " +
-                        "transports: ${currentWorldState?.transports?.size}\n" +
-                        "anomalies: ${currentWorldState?.anomalies?.size}\n" +
-                        "mapSize: ${currentWorldState?.mapSize}\n" +
-                        "lastAction.transport.count: ${lastAction?.commands?.size}\n" +
-                        "logicTookMs: ${stats.logicTookMs}\n" +
-                        "requestTook: ${stats.requestTook}\n" +
-                        "transpInfo: ${printTransportInfo(currentWorldState)}"
-        */
-
     }
-
-    /*
-        private fun printTransportInfo(currentWorldState: WorldStateDto?): String {
-            currentWorldState ?: return "null"
-
-            stats.sims
-            var index = -1
-            return currentWorldState.transports.joinToString("\n\n") {
-                index++
-                val simInfo = stats.sims?.getOrNull(index)
-                "id: ${it.id.take(10)}\n" +
-                        "pos: ${it.pos}\n" +
-                        "vel: ${it.velocity} " +
-                        "selfAcc: ${it.selfAcceleration}\n" +
-                        "health: ${it.health} " +
-                        "${it.status} " +
-                        "deaths: ${it.deathCount}\n" +
-                        "bestScore ${simInfo?.best?.score}\n worstScore ${simInfo?.allVariants?.minOf { it.score }}\n"
-            }
-        }
-    */
 }
 
 private fun Color.withAlpha(alpha: Double): Color {
