@@ -67,6 +67,35 @@ class Ui {
                 }
             }
 
+            stats.logicToDraw?.let { logicToDraw ->
+
+                logicToDraw.targetPoints.fastForEach { targetPoints ->
+                    g.color = Color.BLUE
+
+                    val from = targetPoints.from
+                    val to = targetPoints.to
+
+                    g.drawLine(from.x * k.toInt(), from.y * k.toInt(), to.x * k.toInt(), to.y * k.toInt())
+
+                    g.drawOval((from.x * k).toInt() - 3, (from.y * k).toInt() - 3, 6, 6)
+                    g.drawOval((to.x * k).toInt() - 3, (to.y * k).toInt() - 3, 6, 6)
+
+                    g.drawLine(
+                        (from.x * k).toInt(),
+                        (from.y * k).toInt(),
+                        (to.x * k).toInt(),
+                        (to.y * k).toInt(),
+                    )
+                }
+
+                logicToDraw.paths.fastForEach { path ->
+                    g.color = Color.BLUE.withAlpha(0.5)
+                    path.fastForEach { p ->
+                        g.fillRect((p.x * k).toInt(), (p.y * k).toInt(), size, size)
+                    }
+                }
+            }
+
 
             val sims = stats.sims
 
@@ -196,8 +225,9 @@ class Ui {
         val minFood = currentWorldState?.food?.minOf { if (it.points == 0) Int.MAX_VALUE else it.points }
 
         infoLabel.text = "info logicMs:${stats.logicTookMs}\n" +
-                "fences:${currentWorldState?.fences?.size}" +
-                "foodCount:${currentWorldState?.food?.size} max:${currentWorldState?.food?.maxOf { it.points }} min:${minFood}"
+                "fences:${currentWorldState?.fences?.size}\n" +
+                "foodCount:${currentWorldState?.food?.size} max:${currentWorldState?.food?.maxOf { it.points }} min:${minFood}\n" +
+                "paths:${stats.logicToDraw?.paths?.minOf { it.size }}..${stats.logicToDraw?.paths?.maxOf { it.size }}\n}"
 
         /*
                 infoLabel.text = "info\n" +

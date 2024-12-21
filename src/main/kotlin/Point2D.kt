@@ -21,6 +21,36 @@ data class Point3D(
         return listOf(x, y, z)
     }
 
+    fun minus(other: Point3D): Point3D {
+        x -= other.x
+        y -= other.y
+        z -= other.z
+        return this
+    }
+
+    inline fun forAllDirections(pointsCache: PlainArray3D<Point3D>, action: (Point3D) -> Boolean) {
+        allDirections.fastForEach { p ->
+            pointsCache.get(x + p.x, y + p.y, z + p.z)?.let {
+                val shouldStop = action(it)
+                if (shouldStop) {
+                    return
+                }
+            }
+        }
+    }
+
+
+    companion object {
+        val allDirections = listOf(
+            Point3D(1, 0, 0),
+            Point3D(0, 1, 0),
+            Point3D(-1, 0, 0),
+            Point3D(0, -1, 0),
+            Point3D(0, 0, 1),
+            Point3D(0, 0, -1)
+        )
+    }
+
 }
 
 class Point2D {

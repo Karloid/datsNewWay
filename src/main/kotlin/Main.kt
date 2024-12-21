@@ -3,6 +3,7 @@ import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.swing.Timer
+import kotlin.collections.ArrayDeque
 
 
 var lastAction: ActionPlanned? = null
@@ -38,6 +39,9 @@ class Stats {
 
     @Volatile
     var sims: List<SimsInfo>? = null
+
+    var tmpLogicToDraw: LogicToDraw? = null
+    var logicToDraw: LogicToDraw? = null
     var requestTook: Long = 0
 
     @Volatile
@@ -121,7 +125,8 @@ fun actualStrategy() {
 
 var mapPoints = PlainArray3D(0, 0, 0, { Point3D(0, 0, 0) })
 var mapBooleans = PlainArray3DBoolean(0, 0, 0, { false })
-var mapInts = PlainArray3DInt(0, 0, 0, { 0 })
+var mapInts1 = PlainArray3DInt(0, 0, 0, { 0 })
+var mapInts2 = PlainArray3DInt(0, 0, 0, { 0 })
 
 private fun doSimpleGuy(): ActionPlanned {
     val w = currentWorldState
@@ -136,33 +141,54 @@ private fun doSimpleGuy(): ActionPlanned {
     val result = mutableListOf<SnakeCommandDto>()
 
     stats.tmpSims.clear()
-    w.snakes.forEach { myShip ->
+    if (DRAW_UI) {
+        stats.tmpLogicToDraw = LogicToDraw()
+    }
+    w.snakes.forEach { mySnake ->
+        val accessMap = calcAccessMap(mapInts1, mySnake)
 
-/*
-        var attack: EnemyDto? = null
-        if (myShip.attackCooldownMs == 0) {
-            attack = w.enemies.filter { it.pos.distance(myShip.pos) < w.attackRange }.minByOrNull { it.health }
+        val closestFood = findClosestFood(accessMap, mySnake)
+
+        if (closestFood != null) {
+            val pathToFood = findPath(mySnake, closestFood.cPoint, accessMap)
+            val firstStepLocation = pathToFood.first()
+            val firstStep = firstStepLocation.copy().minus(mySnake.head)
+            result.add(SnakeCommandDto(id = mySnake.id, direction = firstStep.toList()))
+
+            stats.tmpLogicToDraw?.paths?.add(pathToFood)
+            stats.tmpLogicToDraw?.targetPoints?.add(
+                TargetPoints(
+                    from = mySnake.head,
+                    to = closestFood.cPoint,
+                )
+            )
+            return@forEach
         }
-*/
 
-        // val target = targetToGo(w, myShip)
-        //val target = bestAcc(w, myShip)
-        //  val acceleration = target.copy().minus(myShip.pos).normalize().mul(w.maxAccel)
-        /*    val acceleration = bestAcc(w, myShip)
+        /*
+                var attack: EnemyDto? = null
+                if (mySnake.attackCooldownMs == 0) {
+                    attack = w.enemies.filter { it.pos.distance(mySnake.pos) < w.attackRange }.minByOrNull { it.health }
+                }
+        */
+
+        // val target = targetToGo(w, mySnake)
+        //val target = bestAcc(w, mySnake)
+        //  val acceleration = target.copy().minus(mySnake.pos).normalize().mul(w.maxAccel)
+        /*    val acceleration = bestAcc(w, mySnake)
 
 
                     result.add(
                         SnakeCommandDto(
                             acceleration = acceleration,
-                            activateShield = myShip.shieldCooldownMs == 0 && w.enemies.any { it.pos.distance(myShip.pos) < 200 },
+                            activateShield = mySnake.shieldCooldownMs == 0 && w.enemies.any { it.pos.distance(mySnake.pos) < 200 },
                             attack = attack?.pos?.toVec2(),
-                            id = myShip.id
+                            id = mySnake.id
                         )
                     )*/
-
         result.add(
             SnakeCommandDto(
-                id = myShip.id,
+                id = mySnake.id,
                 direction = listOf(
                     Point3D(1, 0, 0),
                     Point3D(0, 1, 0),
@@ -176,9 +202,112 @@ private fun doSimpleGuy(): ActionPlanned {
     }
 
     stats.sims = ArrayList(stats.tmpSims)
+    stats.logicToDraw = stats.tmpLogicToDraw
     actionPlanned.commands = result
     return actionPlanned
 
+}
+
+fun findPath(fromSnake: SnakeDto, to: Point3D, accessMap: PlainArray3DInt): List<Point3D> {
+    return findPath(fromSnake.head, to, accessMap)
+}
+
+fun findPath(fromSnake: Point3D, to: Point3D, accessMap: PlainArray3DInt): List<Point3D> {
+    val w = currentWorldState ?: throw IllegalStateException("worldState is null")
+    val path = mutableListOf<Point3D>()
+
+    var currentPoint = to
+
+    while (currentPoint != fromSnake) {
+        path.add(currentPoint)
+
+        val myValue = accessMap.getFast(currentPoint)
+        // check all neighboars for lower value
+
+        var newValue: Int = myValue
+
+        currentPoint.forAllDirections(mapPoints) { p ->
+            newValue = accessMap.getFast(p)
+            if (newValue < myValue) {
+                currentPoint = p
+                true
+            } else {
+                false
+            }
+        }
+
+        if (newValue >= myValue) {
+            throw IllegalStateException("can't find path myValue=$myValue newValue=${newValue} path=${path.reverse()}")
+        }
+    }
+
+    path.reverse()
+
+    return path
+}
+
+inline fun <E> List<E>.fastForEach(action: (E) -> Unit) {
+    repeat(size) { index ->
+        action(get(index))
+    }
+}
+
+fun findClosestFood(accessMap: PlainArray3DInt, mySnake: SnakeDto): FoodDto? {
+    val w = currentWorldState ?: throw IllegalStateException("worldState is null")
+
+    var closestFood: FoodDto? = null
+    var closestFoodDistance = Int.MAX_VALUE
+    w.food.forEach { f ->
+        val distance = accessMap.getFast(f.cPoint)
+
+        if (distance < closestFoodDistance) {
+            closestFood = f
+            closestFoodDistance = distance
+        }
+    }
+    return closestFood
+}
+
+fun calcAccessMap(accessMap: PlainArray3DInt, mySnake: SnakeDto, maxDist: Int = 60): PlainArray3DInt {
+    // do dejkstra from mySnake head and fill accessMap
+    val w = currentWorldState ?: throw IllegalStateException("worldState is null")
+    val allEntities = w.allEntities
+
+    accessMap.setAll(Int.MAX_VALUE)
+
+    val visited = mapBooleans
+    visited.setAll(false)
+    accessMap.setFast(mySnake.head, 0)
+
+    val queue = ArrayDeque<Point3D>()
+    queue.add(mySnake.head)
+
+    // implement loop, check there is no entity in path
+    while (queue.isNotEmpty()) {
+        val currentPoint = queue.removeFirst()
+
+        if (visited.getFast(currentPoint)) {
+            continue
+        }
+        val currentValue = accessMap.getFast(currentPoint)
+        visited.setFast(currentPoint, true)
+
+        if (currentValue >= maxDist) {
+            continue
+        }
+
+        currentPoint.forAllDirections(mapPoints) { p ->
+            if (visited.getFast(p).not()) {
+                val entity = allEntities.getFast(p)
+                if (entity == null || entity is FoodDto) {
+                    accessMap.setFast(p, currentValue + 1)
+                    queue.add(p)
+                }
+            }
+            false
+        }
+    }
+    return accessMap
 }
 
 private fun initMapsIfNeeded(w: WorldStateDto) {
@@ -191,7 +320,8 @@ private fun initMapsIfNeeded(w: WorldStateDto) {
         }
 
         mapBooleans = PlainArray3DBoolean(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { false })
-        mapInts = PlainArray3DInt(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { Int.MAX_VALUE })
+        mapInts1 = PlainArray3DInt(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { Int.MAX_VALUE })
+        mapInts2 = PlainArray3DInt(w.mapSizePoint.x, w.mapSizePoint.y, w.mapSizePoint.z, { Int.MAX_VALUE })
     }
 }
 

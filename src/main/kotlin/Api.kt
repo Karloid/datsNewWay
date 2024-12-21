@@ -140,6 +140,7 @@ object Api {
                     if (file.name.contains(escapedPath) && file.name.contains("_req").not()) {
                         val body = file.readText()
                         val result = gson.fromJson(body, WorldStateDto::class.java) ?: throw Exception("Failed to parse response body=$body")
+                        result.initialise()
                         worldsResp.add(result)
                     }
                 }
@@ -179,6 +180,8 @@ object Api {
         saveResponse(path, bodyResponse)
         
         val result = gson.fromJson(bodyResponse, WorldStateDto::class.java) ?: throw Exception("Failed to parse response response=$response body=$bodyResponse")
+
+        result.initialise()
 
         //  log(result)
 

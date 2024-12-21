@@ -21,7 +21,7 @@ class PlainArray3D<T> internal constructor(
         array = Array(cellsWidth * cellsHeight * cellsDepth, init as (Int) -> Any) as Array<T>
     }
 
-    inline internal operator fun get(x: Int, y: Int, z: Int): T? {
+    inline operator fun get(x: Int, y: Int, z: Int): T? {
         return if (!inBounds(x, y, z)) null else array[(z * cellsHeight + y) * cellsWidth + x]
     }
 

@@ -94,6 +94,9 @@
  * }
  */
 
+object Fence : Entity
+
+interface Entity
 
 data class WorldStateDto(
     val mapSize: List<Int>,
@@ -109,6 +112,34 @@ data class WorldStateDto(
     val tickRemainMs: Int,
     val errors: List<Any>
 ) {
+    lateinit var allEntities: PlainArray3D<Entity?>
+
+    fun initialise() {
+        allEntities = PlainArray3D(mapSizePoint.x, mapSizePoint.y, mapSizePoint.z, { null })
+
+        fencesPoints.forEach { fence ->
+            allEntities.setFast(fence, Fence)
+        }
+
+        snakes.forEach { snake ->
+            snake.geometryPoints.forEach { point ->
+                allEntities.setFast(point, snake)
+            }
+        }
+
+        enemies.forEach { enemy ->
+            enemy.geometryPoints.forEach { p ->
+                allEntities.setFast(p, enemy)
+            }
+        }
+
+        food.forEach { food ->
+            food.isGold = specialFood.goldenPointsSet.contains(food.cPoint)
+            food.isSus = specialFood.suspiciousPointsSet.contains(food.cPoint)
+            allEntities.setFast(food.cPoint, food)
+        }
+    }
+
     private var _mapSizePoint: Point3D? = null
     val mapSizePoint: Point3D
         get() = _mapSizePoint ?: Point3D(mapSize[0], mapSize[1], mapSize[2]).also { _mapSizePoint = it }
@@ -134,7 +165,10 @@ data class SnakeDto(
     val deathCount: Int,
     val status: String,
     val reviveRemainMs: Int
-) {
+) : Entity {
+    val head: Point3D
+        get() = geometryPoints.first()
+
     private var _directionPoint: Point3D? = null
     val directionPoint: Point3D
         get() = _directionPoint ?: Point3D(direction[0], direction[1], direction[2]).also { _directionPoint = it }
@@ -160,7 +194,7 @@ data class EnemyDto(
     val geometry: List<List<Int>>,
     val status: String,
     val kills: Int
-) {
+) : Entity {
     private var _geometryPoints: MutableList<Point3D>? = null
     val geometryPoints: List<Point3D>
         get() {
@@ -176,8 +210,10 @@ data class EnemyDto(
 
 data class FoodDto(
     val c: List<Int>,
-    val points: Int
-) {
+    val points: Int,
+) : Entity {
+    var isSus: Boolean = false
+    var isGold: Boolean = false
     private var _cPoint: Point3D? = null
     val cPoint: Point3D
         get() = _cPoint ?: Point3D(c[0], c[1], c[2]).also { _cPoint = it }
