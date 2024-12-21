@@ -103,7 +103,6 @@ fun doLoop() {
 
     val rounds = roundsInfo.rounds.sortedBy { it.getStartAsLong() }
     val activeRound = rounds.firstOrNull { it.status == "active" }
-
 */
     actualStrategy()
 }
@@ -190,41 +189,46 @@ private fun doSimpleGuy(): ActionPlanned {
             )
             return@forEach
         }
+        log("WARNING no food found for snake ${mySnake.id} myHead=${mySnake.head}")
 
-        /*
-                var attack: EnemyDto? = null
-                if (mySnake.attackCooldownMs == 0) {
-                    attack = w.enemies.filter { it.pos.distance(mySnake.pos) < w.attackRange }.minByOrNull { it.health }
-                }
-        */
-
-        // val target = targetToGo(w, mySnake)
-        //val target = bestAcc(w, mySnake)
-        //  val acceleration = target.copy().minus(mySnake.pos).normalize().mul(w.maxAccel)
-        /*    val acceleration = bestAcc(w, mySnake)
-
-
-                    result.add(
-                        SnakeCommandDto(
-                            acceleration = acceleration,
-                            activateShield = mySnake.shieldCooldownMs == 0 && w.enemies.any { it.pos.distance(mySnake.pos) < 200 },
-                            attack = attack?.pos?.toVec2(),
-                            id = mySnake.id
-                        )
-                    )*/
-        result.add(
-            SnakeCommandDto(
-                id = mySnake.id,
-                direction = listOf(
-                    Point3D(1, 0, 0),
-                    Point3D(0, 1, 0),
-                    Point3D(0, 0, 1),
-                    Point3D(1, 0, 0).mul(-1.0),
-                    Point3D(0, 1, 0).mul(-1.0),
-                    Point3D(0, 0, 1).mul(-1.0),
-                ).random().toList()
+        val possibleDirs = mutableListOf<Point3D>()
+        mySnake.head.forAllDirections(mapPoints) { neigbor ->
+            var hasHeadInIt = false
+            neigbor.forAllDirections(mapPoints) { neighborPoint ->
+                hasHeadInIt = w.enemies.any() { it.geometryPoints.firstOrNull() == neighborPoint } ||
+                        w.snakes.any() { it != mySnake && it.geometryPoints.firstOrNull() == neighborPoint }
+                hasHeadInIt
+            }
+            if (hasHeadInIt.not()) {
+                possibleDirs.add(neigbor.copy().minus(mySnake.head))
+            }
+            false
+        }
+        if (possibleDirs.isNotEmpty()) {
+            val random = possibleDirs.random()
+            log("WARNING no food found for snake ${mySnake.id} myHead=${mySnake.head} go to random safe=$random allPossible=${possibleDirs}")
+            result.add(
+                SnakeCommandDto(
+                    id = mySnake.id,
+                    direction = random.toList()
+                )
             )
-        )
+        } else {
+            log("ERROR no food found for snake ${mySnake.id} myHead=${mySnake.head} GO TO RANDOM UNSAFE")
+            result.add(
+                SnakeCommandDto(
+                    id = mySnake.id,
+                    direction = listOf(
+                        Point3D(1, 0, 0),
+                        Point3D(0, 1, 0),
+                        Point3D(0, 0, 1),
+                        Point3D(1, 0, 0).mul(-1.0),
+                        Point3D(0, 1, 0).mul(-1.0),
+                        Point3D(0, 0, 1).mul(-1.0),
+                    ).random().toList()
+                )
+            )
+        }
     }
 
     stats.sims = ArrayList(stats.tmpSims)
@@ -235,6 +239,12 @@ private fun doSimpleGuy(): ActionPlanned {
 }
 
 fun findPath(fromSnake: SnakeDto, to: Point3D, accessMap: PlainArray3DInt): List<Point3D> {
+
+    /*findPathFood(to, accessMap, emptyList()).let { (path, points) ->
+        log("found path points=$points path=$path")
+        return path.reversed()
+    }*/
+
     return findPath(fromSnake.head, to, accessMap)
 }
 
@@ -270,6 +280,37 @@ fun findPath(fromSnake: Point3D, to: Point3D, accessMap: PlainArray3DInt): List<
     path.reverse()
 
     return path
+}
+
+// bad
+fun findPathFood(to: Point3D, accessMap: PlainArray3DInt, totalPath:List<Point3D>): Pair<List<Point3D>, Int> {
+    val w = currentWorldState ?: throw IllegalStateException("worldState is null")
+    val path = mutableListOf<Point3D>()
+
+    val currentPoint = to
+    val myValue = accessMap.getFast(currentPoint)
+    val food = (w.allEntities.getFast(currentPoint) as? FoodDto)?.points ?: 0
+
+    if (myValue == 0) {
+        return totalPath to food
+    }
+
+
+    var bestPath: Pair<List<Point3D>, Int>? = null
+
+    currentPoint.forAllDirections(mapPoints) { p ->
+        val newValue = accessMap.getFast(p)
+        if (newValue < myValue) {
+            var candidate = findPathFood(p, accessMap, totalPath)
+            candidate = candidate.first + p to candidate.second + food
+            if (bestPath == null || candidate.second > bestPath!!.second) {
+                bestPath = candidate
+            }
+        }
+        false
+    }
+
+    return bestPath!!
 }
 
 inline fun <E> List<E>.fastForEach(action: (E) -> Unit) {
@@ -344,15 +385,16 @@ fun calcAccessMap(accessMap: PlainArray3DInt, mySnake: SnakeDto, maxDist: Int = 
             if (visited.getFast(p).not()) {
                 val entity = allEntities.getFast(p)
                 if (entity == null || entity is FoodDto) {
-                    var hasEnemyNear = false
+                    var hasHeadInIt = false
                     if (currentValue == 0) {
                         p.forAllDirections(mapPoints) { neighborPoint ->
-                            hasEnemyNear = w.enemies.any() { it.geometryPoints.firstOrNull() == neighborPoint }
-                            hasEnemyNear
+                            hasHeadInIt = w.enemies.any() { it.geometryPoints.firstOrNull() == neighborPoint } ||
+                                    w.snakes.any() { it != mySnake && it.geometryPoints.firstOrNull() == neighborPoint }
+                            hasHeadInIt
                         }
                     }
 
-                    if (hasEnemyNear) {
+                    if (hasHeadInIt) {
                         visited.setFast(p, true)
                     } else {
                         accessMap.setFast(p, currentValue + 1)
@@ -383,106 +425,7 @@ private fun initMapsIfNeeded(w: WorldStateDto) {
 
 data class AccAndScore(val acc: Point3D, val score: Double = 0.0)
 
-fun bestAcc(w: WorldStateDto, mySnake: SnakeDto): Point3D {
-    /*
-        val count = 16
-        val accelerations = (0..count).map { index ->
-            val acc = Point2DF(1.0, 0.0).rotate((Math.PI * 2) / count.toDouble() * index).mul(w.maxAccel)
-            acc
-        }
-
-        val SIM_TIME = 16000
-        val TICKS = ((SIM_TIME / 1000f) * TICKS_PER_SECOND).toInt()
-        val worldCenter = w.mapSizePoint.copy().mul(0.5)
-        val variants = accelerations.map { acc ->
-
-            val variantPoses = mutableListOf<Point2DF>()
-            var score = 0.0
-
-            var pos = mySnake.geometryPoints.first().copy()
-            var velocity = mySnake.velocity.copy()
-
-            val bountiesPicked = mutableMapOf<Point2DF, BountyDto>()
-            val enemiesHit = mutableMapOf<Point2DF, EnemyDto>()
-            val anomalisHit = mutableMapOf<Point2DF, AnomalyDto>()
-
-            var outOfBounds = false
-
-            for (i in 0 until TICKS) {
-                variantPoses.add(pos.copy())
-                pos = pos.copy().plus(velocity.copy().mul(1.0 / TICKS_PER_SECOND))
-                velocity = velocity.copy().plus(acc.copy().mul(1.0 / TICKS_PER_SECOND))
-                if (velocity.length() > w.maxSpeed) {
-                    velocity = velocity.normalize().mul(w.maxSpeed)
-                }
-
-                // put picked bounties, by radius
-
-                w.bounties.forEach {
-                    if (it.pos.sqDistance(pos) < it.radius * it.radius) {
-                        bountiesPicked[it.pos] = it
-                    }
-                }
-
-                w.enemies.forEach { enemy ->
-                    if (enemy.pos.sqDistance(pos) < 10 * 10) {
-                        enemiesHit[enemy.pos] = enemy
-                    }
-                }
-                w.anomalies.forEach { anomaly ->
-                    if (anomaly.pos.sqDistance(pos) < anomaly.radius * anomaly.radius) {
-                        anomalisHit[anomaly.pos] = anomaly
-                    }
-                }
-
-                // out ofBounds
-                outOfBounds = outOfBounds || pos.x < 0 || pos.y < 0 || pos.x > w.mapSize.x || pos.y > w.mapSize.y
-            }
-
-            score = bountiesPicked.values.sumByDouble { it.points }
-
-            enemiesHit.values.forEach { en ->
-                if (en.health >= mySnake.health) {
-                    score -= w.points * 0.05
-                }
-            }
-
-            anomalisHit.values.forEach { an ->
-                score -= w.points * 0.05
-            }
-
-            if (outOfBounds) {
-                score -= w.points * 0.05
-            }
-
-            score -= variantPoses.last().distance(worldCenter) / w.mapSize.max().toDouble()
-
-            AccAndScore(acc, score, variantPoses, bountiesPicked)
-        }
-
-        val best = variants.maxByOrNull { it.score }!!
-        stats.tmpSims.add(
-            SimsInfo(
-                best = best,
-                allVariants = variants,
-            )
-        )
-        return best.acc
-    */
-    return null!!
-}
-
-class SimsInfo(val best: AccAndScore, val allVariants: List<AccAndScore>) {
-
-}
-
-/*
-private fun targetToGo(w: WorldStateDto, myShip: TransportDto): Point2DF {
-    val closestBounty = w.bounties.minByOrNull { it.pos.sqDistance(myShip.pos) }?.pos
-    val target = closestBounty ?: w.mapSize.copy().mul(0.5)
-    return target
-}
-*/
+class SimsInfo(val best: AccAndScore, val allVariants: List<AccAndScore>)
 
 fun loadState() {
     File("state.json").takeIf { it.exists() }?.let {
