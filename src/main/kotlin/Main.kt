@@ -92,7 +92,7 @@ private fun realMain() {
 private fun globalLoop() {
     runCatching { doLoop() }
         .onFailure {
-            logicThread.schedule({ globalLoop() }, 3, TimeUnit.SECONDS)
+            logicThread.schedule({ globalLoop() }, 1, TimeUnit.SECONDS)
             System.err.println("doLoop failed " + it.stackTraceToString())
             return
         }
@@ -133,7 +133,7 @@ fun actualStrategy() {
         stats.successMoves++
     }
 
-    val waitNextTick = currentWorldState?.tickRemainMs?.plus(20L) ?: 200L
+    val waitNextTick = currentWorldState?.tickRemainMs?.plus(100L) ?: 200L
     log("actualStrategy waitNextTick=${waitNextTick} tickRemainMs=${currentWorldState?.tickRemainMs}")
     logicThread.schedule({ globalLoop() }, waitNextTick, TimeUnit.MILLISECONDS)
 }
@@ -292,9 +292,19 @@ fun findBestFood(accessMap: PlainArray3DInt, mySnake: SnakeDto, claimedFood: Mut
             return@forEach
         }
 
+        var passableCellsCount = 0
+
+        f.cPoint.forAllDirections(mapPoints) { p ->
+            val entity = w.allEntities.getFast(p)
+            if (entity == null || entity is FoodDto) {
+                passableCellsCount++
+            }
+            false
+        }
+
         val pointsPerDistance = f.points / distance.toFloat()
 
-        if (pointsPerDistance > bestPointsPerDistance) {
+        if (passableCellsCount >= 2 && pointsPerDistance > bestPointsPerDistance) {
             closestFood = f
             bestPointsPerDistance = pointsPerDistance
         }
@@ -334,8 +344,20 @@ fun calcAccessMap(accessMap: PlainArray3DInt, mySnake: SnakeDto, maxDist: Int = 
             if (visited.getFast(p).not()) {
                 val entity = allEntities.getFast(p)
                 if (entity == null || entity is FoodDto) {
-                    accessMap.setFast(p, currentValue + 1)
-                    queue.add(p)
+                    var hasEnemyNear = false
+                    if (currentValue == 0) {
+                        p.forAllDirections(mapPoints) { neighborPoint ->
+                            hasEnemyNear = w.enemies.any() { it.geometryPoints.firstOrNull() == neighborPoint }
+                            hasEnemyNear
+                        }
+                    }
+
+                    if (hasEnemyNear) {
+                        visited.setFast(p, true)
+                    } else {
+                        accessMap.setFast(p, currentValue + 1)
+                        queue.add(p)
+                    }
                 }
             }
             false
