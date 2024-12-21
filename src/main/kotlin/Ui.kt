@@ -79,8 +79,6 @@ class Ui {
                     val from = targetPoints.from
                     val to = targetPoints.to
 
-                    g.drawLine(from.x * k.toInt(), from.y * k.toInt(), to.x * k.toInt(), to.y * k.toInt())
-
                     g.drawOval((from.x * k).toInt() - 3, (from.y * k).toInt() - 3, 6, 6)
                     g.drawOval((to.x * k).toInt() - 3, (to.y * k).toInt() - 3, 6, 6)
 
@@ -239,7 +237,14 @@ class Ui {
                 "requestTook: state=${stats?.requestStateTook} move=${stats.requestTook} success/bad moves=${stats.successMoves}/${stats.badMoves}\n" +
                 "fences:${currentWorldState?.fences?.size}\n" +
                 "foodCount:${currentWorldState?.food?.size} max:${currentWorldState?.food?.maxOf { it.points }} min:${minFood}\n" +
-                "paths:${stats.logicToDraw?.paths?.map { "l:" + it.size + " " + it.last().toList() }}\n"
+                "paths:${
+                    stats.logicToDraw?.paths?.mapIndexed { index, it ->
+                        val pathSize = it.size
+                        val points = stats.logicToDraw?.foods?.getOrNull(index)?.points
+                        val pPerDist = points?.let { it / pathSize.toFloat() }
+                        "\nl:" + pathSize + " " + it.last().toList() + " p:" + points + " perDist:${pPerDist}"
+                    }
+                }\n"
 
         /*
                 infoLabel.text = "info\n" +

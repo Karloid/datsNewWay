@@ -43,10 +43,9 @@ object Api {
      */
 
     fun getRounds(): RoundsDto {
-        throttle()
-
-
         val path = "/rounds/snake3d"
+
+        throttle(path)
 
         if (REPEAT_MODE) {
             // find files with this path in name in folder response and answer with it
@@ -102,7 +101,7 @@ object Api {
     /**
      * we should not fire more than 4 request per second
      */
-    private fun throttle() {
+    private fun throttle(path: String) {
         val currentTs = System.currentTimeMillis()
 
         // remove requests older than 1 second
@@ -118,7 +117,7 @@ object Api {
 
         val sleepTime = 1000 - (currentTs - lastRequest.first())
 
-        log("throttle sleep for $sleepTime")
+        log("throttle sleep for $sleepTime $path")
         Thread.sleep(sleepTime)
 
         lastRequest.add(System.currentTimeMillis())
@@ -126,10 +125,10 @@ object Api {
 
 
     fun move(transports: List<SnakeCommandDto>, throttleEnabled: Boolean = true): WorldStateDto {
-        if (throttleEnabled) {
-            throttle()
-        }
         val path = "/play/snake3d/player/move"
+        if (throttleEnabled) {
+            throttle(path)
+        }
 
         if (REPEAT_MODE) {
             if (worldsResp.isEmpty()) {

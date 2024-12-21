@@ -1,4 +1,5 @@
 import java.io.File
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -52,6 +53,7 @@ class Stats {
 
     @Volatile
     var badMoves: Long = 0
+
     @Volatile
     var successMoves = 0
 }
@@ -88,23 +90,21 @@ private fun realMain() {
 }
 
 private fun globalLoop() {
-    while (true) {
-        runCatching { doLoop() }
-            .onFailure {
-                logicThread.schedule({ globalLoop() }, 3, TimeUnit.SECONDS)
-                System.err.println("doLoop failed " + it.stackTraceToString())
-                return
-            }
-    }
+    runCatching { doLoop() }
+        .onFailure {
+            logicThread.schedule({ globalLoop() }, 3, TimeUnit.SECONDS)
+            System.err.println("doLoop failed " + it.stackTraceToString())
+            return
+        }
 }
 
 fun doLoop() {
-    val roundsInfo = Api.getRounds()
+    /*val roundsInfo = Api.getRounds()
 
     val rounds = roundsInfo.rounds.sortedBy { it.getStartAsLong() }
     val activeRound = rounds.firstOrNull { it.status == "active" }
 
-
+*/
     actualStrategy()
 }
 
@@ -112,6 +112,7 @@ fun actualStrategy() {
     var startRequest = System.currentTimeMillis()
     currentWorldState = Api.move(transports = emptyList())
     stats.requestStateTook = System.currentTimeMillis() - startRequest
+    log("stateMove= tickRemainMs=${currentWorldState?.tickRemainMs} requestStateTook=${stats.requestStateTook}")
     val stateTick = currentWorldState?.turn
     val startLogic = System.currentTimeMillis()
     val myAction = doSimpleGuy()
@@ -126,15 +127,15 @@ fun actualStrategy() {
     stats.requestTook = System.currentTimeMillis() - startRequest
     val actualTick = currentWorldState?.turn
     if (actualTick != stateTick) {
-        log("ERROR actualStrategy tick mismatch tick=$actualTick stateTick=$stateTick")
+        log("ERROR tick mismatch stateTick=$stateTick (took=${stats.requestStateTook}) tick=$actualTick(took=${stats.requestTook})")
         stats.badMoves++
     } else {
         stats.successMoves++
     }
 
     val waitNextTick = currentWorldState?.tickRemainMs?.plus(20L) ?: 200L
-    log("actualStrategy waitNextTick=${waitNextTick}")
-    logicThread.schedule({ actualStrategy() }, waitNextTick, TimeUnit.MILLISECONDS)
+    log("actualStrategy waitNextTick=${waitNextTick} tickRemainMs=${currentWorldState?.tickRemainMs}")
+    logicThread.schedule({ globalLoop() }, waitNextTick, TimeUnit.MILLISECONDS)
 }
 
 var mapPoints = PlainArray3D(0, 0, 0, { Point3D(0, 0, 0) })
@@ -158,25 +159,33 @@ private fun doSimpleGuy(): ActionPlanned {
     if (DRAW_UI) {
         stats.tmpLogicToDraw = LogicToDraw()
     }
+    val claimedFood = mutableSetOf<FoodDto>()
     w.snakes.forEach { mySnake ->
         if (mySnake.status == "dead") {
             return@forEach
         }
-        val accessMap = calcAccessMap(mapInts1, mySnake)
+        var accessMap = calcAccessMap(mapInts1, mySnake)
+        var bestFood = findBestFood(accessMap, mySnake, claimedFood)
 
-        val closestFood = findClosestFood(accessMap, mySnake)
+        if (bestFood == null) {
+            log("WARNING no food found for snake ${mySnake.id} myHead=${mySnake.head} retry with maxDist=70")
+            accessMap = calcAccessMap(mapInts1, mySnake, maxDist = 70)
+            bestFood = findBestFood(accessMap, mySnake, claimedFood)
+        }
 
-        if (closestFood != null) {
-            val pathToFood = findPath(mySnake, closestFood.cPoint, accessMap)
+        if (bestFood != null) {
+            claimedFood += bestFood
+            val pathToFood = findPath(mySnake, bestFood.cPoint, accessMap)
             val firstStepLocation = pathToFood.first()
             val firstStep = firstStepLocation.copy().minus(mySnake.head)
             result.add(SnakeCommandDto(id = mySnake.id, direction = firstStep.toList()))
 
             stats.tmpLogicToDraw?.paths?.add(pathToFood)
+            stats.tmpLogicToDraw?.foods?.add(bestFood)
             stats.tmpLogicToDraw?.targetPoints?.add(
                 TargetPoints(
                     from = mySnake.head,
-                    to = closestFood.cPoint,
+                    to = bestFood.cPoint,
                 )
             )
             return@forEach
@@ -269,23 +278,31 @@ inline fun <E> List<E>.fastForEach(action: (E) -> Unit) {
     }
 }
 
-fun findClosestFood(accessMap: PlainArray3DInt, mySnake: SnakeDto): FoodDto? {
+fun findBestFood(accessMap: PlainArray3DInt, mySnake: SnakeDto, claimedFood: MutableSet<FoodDto>): FoodDto? {
     val w = currentWorldState ?: throw IllegalStateException("worldState is null")
 
     var closestFood: FoodDto? = null
-    var closestFoodDistance = Int.MAX_VALUE
+    var bestPointsPerDistance = 0f
     w.food.forEach { f ->
+        if (claimedFood.contains(f)) {
+            return@forEach
+        }
         val distance = accessMap.getFast(f.cPoint)
+        if (distance == Int.MAX_VALUE) {
+            return@forEach
+        }
 
-        if (distance < closestFoodDistance) {
+        val pointsPerDistance = f.points / distance.toFloat()
+
+        if (pointsPerDistance > bestPointsPerDistance) {
             closestFood = f
-            closestFoodDistance = distance
+            bestPointsPerDistance = pointsPerDistance
         }
     }
     return closestFood
 }
 
-fun calcAccessMap(accessMap: PlainArray3DInt, mySnake: SnakeDto, maxDist: Int = 60): PlainArray3DInt {
+fun calcAccessMap(accessMap: PlainArray3DInt, mySnake: SnakeDto, maxDist: Int = 40): PlainArray3DInt {
     // do dejkstra from mySnake head and fill accessMap
     val w = currentWorldState ?: throw IllegalStateException("worldState is null")
     val allEntities = w.allEntities
@@ -476,6 +493,8 @@ fun uiLoop() {
 }
 
 
+var dateFormat = SimpleDateFormat("HH:mm:ss.SSS")
+
 fun log(s: String?) {
-    println(Date().toString() + " " + s)
+    println(dateFormat.format(Date()) + " *${currentWorldState?.turn} " + s)
 }
